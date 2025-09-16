@@ -1,86 +1,96 @@
 import pytest
+import requests
 import allure
-import json
+from unittest.mock import patch
 
-@pytest.mark.api
-@allure.feature("API Тесты (Mock)")
-class TestAPIMockTestCases:
-    
-    @allure.story("Поиск товара на кириллице - Mock")
+BASE_URL = "https://api.partner.market.yandex.ru"
+
+
+@allure.feature("API Mock — Поиск и Расписание")
+@pytest.mark.api_mock
+class TestAPIMockCases:
+
+    @allure.story("Поиск товара на кириллице (mock)")
     def test_search_cyrillic_mock(self):
-        """Mock тест поиска на кириллице"""
-        with allure.step("Имитация успешного ответа API"):
-            mock_response = {
-                "items": [
-                    {"id": 1, "name": "Суши Филадельфия", "price": 350, "weight": 250},
-                    {"id": 2, "name": "Суши Калифорния", "price": 320, "weight": 220}
-                ],
-                "total": 2,
-                "status": "success"
-            }
-            
-            assert mock_response["status"] == "success"
-            assert len(mock_response["items"]) > 0
-            assert any("суши" in item["name"].lower() for item in mock_response["items"])
-    
-    @allure.story("Поиск товара на латинице - Mock")
+        mock_response = {
+            "items": [
+                {"id": 1, "name": "Суши сет", "price": 500},
+                {"id": 2, "name": "Ролл Филадельфия", "price": 300}
+            ]
+        }
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = mock_response
+
+            url = f"{BASE_URL}/v1/search"
+            payload = {"text": "суши", "location": {"longitude": 46.02, "latitude": 51.60}}
+            response = requests.post(url, json=payload)
+
+            assert response.status_code == 200
+            assert "items" in response.json()
+            assert len(response.json()["items"]) == 2
+
+    @allure.story("Поиск товара на латинице (mock)")
     def test_search_latin_mock(self):
-        """Mock тест поиска на латинице"""
-        with allure.step("Имитация успешного ответа API"):
-            mock_response = {
-                "items": [
-                    {"id": 3, "name": "Sushi Set", "price": 500, "weight": 300},
-                    {"id": 4, "name": "Sushi Box", "price": 450, "weight": 280}
-                ],
-                "total": 2,
-                "status": "success"
-            }
-            
-            assert mock_response["status"] == "success"
-            assert len(mock_response["items"]) > 0
-    
-    @allure.story("Поиск с пустым запросом - Mock")
+        mock_response = {
+            "items": [
+                {"id": 3, "name": "Sushi Set", "price": 550}
+            ]
+        }
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = mock_response
+
+            url = f"{BASE_URL}/v1/search"
+            payload = {"text": "sushi", "location": {"longitude": 46.02, "latitude": 51.60}}
+            response = requests.post(url, json=payload)
+
+            assert response.status_code == 200
+            assert response.json()["items"][0]["name"] == "Sushi Set"
+
+    @allure.story("Поиск с пустым запросом (mock)")
     def test_search_empty_mock(self):
-        """Mock тест пустого поиска"""
-        with allure.step("Имитация ответа для пустого запроса"):
-            mock_response = {
-                "frequently_searched": ["суши", "пицца", "бургеры", "роллы"],
-                "popular_categories": ["Японская кухня", "Пицца", "Бургеры"],
-                "status": "success"
-            }
-            
-            assert mock_response["status"] == "success"
-            assert "frequently_searched" in mock_response
-    
-    @allure.story("Поиск со специальными символами - Mock")
-    def test_search_special_chars_mock(self):
-        """Mock тест спецсимволов"""
-        with allure.step("Имитация ответа для некорректного запроса"):
-            mock_response = {
-                "message": "По вашему запросу ничего не найдено",
-                "suggestions": ["суши", "роллы", "пицца"],
-                "status": "success"
-            }
-            
-            assert mock_response["status"] == "success"
-            assert "message" in mock_response
-    
-    @allure.story("Получение расписания работы - Mock")
+        mock_response = {"items": []}
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = mock_response
+
+            url = f"{BASE_URL}/v1/search"
+            payload = {"text": "", "location": {"longitude": 46.02, "latitude": 51.60}}
+            response = requests.post(url, json=payload)
+
+            assert response.status_code == 200
+            assert response.json()["items"] == []
+
+    @allure.story("Поиск со спецсимволами (mock)")
+    def test_search_special_characters_mock(self):
+        mock_response = {"items": []}
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = mock_response
+
+            url = f"{BASE_URL}/v1/search"
+            payload = {"text": "!@#$%^&*()", "location": {"longitude": 46.02, "latitude": 51.60}}
+            response = requests.post(url, json=payload)
+
+            assert response.status_code == 200
+            assert response.json()["items"] == []
+
+    @allure.story("Получение расписания доставки (mock)")
     def test_get_schedule_mock(self):
-        """Mock тест расписания"""
-        with allure.step("Имитация ответа с расписанием"):
-            mock_response = {
-                "schedule": {
-                    "monday": {"open": "09:00", "close": "22:00"},
-                    "tuesday": {"open": "09:00", "close": "22:00"},
-                    "wednesday": {"open": "09:00", "close": "22:00"},
-                    "thursday": {"open": "09:00", "close": "22:00"},
-                    "friday": {"open": "09:00", "close": "23:00"},
-                    "saturday": {"open": "10:00", "close": "23:00"},
-                    "sunday": {"open": "10:00", "close": "22:00"}
-                },
-                "status": "success"
-            }
-            
-            assert mock_response["status"] == "success"
-            assert "schedule" in mock_response
+        mock_response = {
+            "deliverySlots": [
+                {"date": "2025-09-17", "time": "12:00-14:00"},
+                {"date": "2025-09-17", "time": "14:00-16:00"}
+            ]
+        }
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = mock_response
+
+            url = f"{BASE_URL}/v1/schedule"
+            response = requests.get(url)
+
+            assert response.status_code == 200
+            assert "deliverySlots" in response.json()
+            assert len(response.json()["deliverySlots"]) == 2
